@@ -1,0 +1,7 @@
+ if(argc==1)
+ {
+	 printf("usage: nome_do_executavel file1 file2\n");
+	 exit(3);
+ }
+
+ Se argc foi só = 1 então quer dizer que os dois ficheiros não foram passados pela linha de comandos

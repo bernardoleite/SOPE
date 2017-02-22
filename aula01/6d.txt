@@ -1,0 +1,3 @@
+Link: http://beej.us/guide/bgnet/output/html/multipage/perrorman.html
+
+Para imprimir os erros de uma forma amigável

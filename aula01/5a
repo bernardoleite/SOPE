@@ -1,0 +1,2 @@
+O comando “printenv” imprime todas as variáveis de Ambiente. A questão é agora saber 
+como fazer um programa que faça o mesmo.

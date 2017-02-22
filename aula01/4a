@@ -1,0 +1,17 @@
+#include <stdio.h>
+
+int main( int argc, char *argv[ ] )
+{
+   int cont;
+    for(cont=0; cont < argc; cont++)
+        printf("%d Parametro: %s\n", cont,argv[cont]);
+
+    return 0;
+}
+
+
+Neste pedaço de código veritica-se a possibilidade de, através da linha de comandos
+passar argumentos. Esses argumentos são impressos.
+
+Para passar um argumento de um Nome + Apelido separado com um espaço penso que basta
+imprimir para além de argv1, argv2.

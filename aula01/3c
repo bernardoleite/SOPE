@@ -1,0 +1,1 @@
+Caso digite o comando “ls” , ao executar novamente “echo $?” dá-me o valor de retorno anterior.
