@@ -10,17 +10,28 @@
 #include <time.h>
 #include <pthread.h> 
 
+struct FIFOS {
+  int fentrada;
+  int frejeitados;
+} fifos;
 
 struct Pedidos {
   
   char genero;
   int n_pedido;
   int tempo_util;
-  int n_rejeit;
+
 } pedido;
 
+
+struct PEDIDOEFIFO {
+
+  struct Pedidos pedido;
+  int fifo;
+}pedidoefifo;
+
 pthread_mutex_t mut=PTHREAD_MUTEX_INITIALIZER;  // mutex p/a sec.critica 
-struct Pedidos ped[100];
+struct Pedidos ped;
 int n_lugares;
 int ocupados = 0;
 char genero = 'N';
@@ -35,11 +46,14 @@ int readline(int fd, char *str)
   return (n>0); 
 } 
 
-void * thrpedido_entrada(void * arg1, void * arg2)
+void * thrpedido_entrada(void * arg)
 {
 
-  struct Pedidos pedido = *(struct Pedidos *) arg1;
-  int frejeitados = *(int *) arg2;
+  struct PEDIDOEFIFO* pedfifo = (struct PEDIDOEFIFO *) arg;
+  struct Pedidos pedido = pedfifo->pedido;
+  int frejeitados = pedfifo->fifo; 
+  //struct Pedidos pedido = *(struct Pedidos *) arg;
+
   printf("Pedido %d a querer entrar %d do genero %c\n",pedido.n_pedido,pedido.tempo_util,pedido.genero);
 
   while(1) {
@@ -54,8 +68,6 @@ void * thrpedido_entrada(void * arg1, void * arg2)
 	    sleep(pedido.tempo_util);
 	    pthread_mutex_lock(&mut);
 	    ocupados--;
-	    if(ocupados == 0)
-		genero == 'N';
 	    pthread_mutex_unlock(&mut); 
 	    printf("Pedido %d a sair\n",pedido.n_pedido);
 
@@ -73,21 +85,17 @@ void * thrpedido_entrada(void * arg1, void * arg2)
 		      sleep(pedido.tempo_util);
 		      pthread_mutex_lock(&mut);
 		      ocupados--;
-	    	      if(ocupados == 0)
-			genero == 'N';
 		      printf("Pedido %d a sair\n",pedido.n_pedido);
 		      pthread_mutex_unlock(&mut); 
 		      return NULL; 
 		    }
-	    		//Sauna Cheia
 
 	  }
 
 	  //Pedido do genero diferente ao da sauna
 	  else {
 	    printf("Pedido %d rejeitado\n",pedido.n_pedido);
-	    pedido.n_rejeit++;
-	    write(fsaida,&pedido,sizeof(pedido));
+         //   write(frejeitados,&pedido,sizeof(pedido));
 	    return NULL; 
 
 	  }
@@ -97,26 +105,32 @@ void * thrpedido_entrada(void * arg1, void * arg2)
 }
 
 
-void * thrpedido_receber(void * arg1, void * arg2) 
+void * thrpedido_receber(void * arg) 
 {
-  struct Pedidos pedidos[100];
+  struct Pedidos pedidos;
+  struct PEDIDOEFIFO pedfifo[100];
   pthread_t tpedidos[100];
   int i = 0;
-  int fentrada = *(int *) arg1;
-  int frejeitados = *(int *) arg2;
+  struct FIFOS* fifos = (struct FIFOS *) arg;
+  int fentrada = fifos->fentrada;
+  int frejeitados = fifos->frejeitados;
   //Gera genero do utilizador
   printf("PEDIDOS RECEBIDOS:\n");
-  while(read(fentrada,&pedidos[i],sizeof(ped[0])) > 0) {
-   printf("%d ",pedidos[i].n_pedido); 
-   printf("%c ",pedidos[i].genero); 
-   printf("%d\n",pedidos[i].tempo_util);
+
+  while(read(fentrada,&pedidos,sizeof(pedidos)) > 0) {
+   printf("%d %c % d\n", pedidos.n_pedido, pedidos.genero, pedidos.tempo_util);
+   
+   pedfifo[i].pedido = pedidos;
+   pedfifo[i].fifo = frejeitados;
+
    i++;
   }
   
   for(int j = 0; j < i; j++) {
-    pthread_create(&tpedidos[j], NULL, thrpedido_entrada, &pedidos[j], &saida); 
+    pthread_create(&tpedidos[j], NULL, thrpedido_entrada, (void *) &pedfifo[j]); 
 
   }
+
 
   for(int j = 0; j < i; j++) {
     pthread_join(tpedidos[j], NULL); 
@@ -161,8 +175,10 @@ int main(int argc, char* argv[])
  } 
  
  n_lugares = atoi(argv[1]);
-
- pthread_create(&tpedidos_recebidos, NULL, thrpedido_receber, &fentrada); 
+ struct FIFOS fifos;
+ fifos.fentrada = fentrada;
+ fifos.frejeitados = frejeitados;
+ pthread_create(&tpedidos_recebidos, NULL, thrpedido_receber, (void *) &fifos); 
 
  pthread_join(tpedidos_recebidos, NULL); 
 
