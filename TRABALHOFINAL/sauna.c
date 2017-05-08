@@ -16,7 +16,7 @@ struct Pedidos {
   char genero;
   int n_pedido;
   int tempo_util;
-
+  int n_rejeit;
 } pedido;
 
 pthread_mutex_t mut=PTHREAD_MUTEX_INITIALIZER;  // mutex p/a sec.critica 
@@ -35,11 +35,11 @@ int readline(int fd, char *str)
   return (n>0); 
 } 
 
-void * thrpedido_entrada(void * arg)
+void * thrpedido_entrada(void * arg1, void * arg2)
 {
 
-  struct Pedidos pedido = *(struct Pedidos *) arg;
-    
+  struct Pedidos pedido = *(struct Pedidos *) arg1;
+  int frejeitados = *(int *) arg2;
   printf("Pedido %d a querer entrar %d do genero %c\n",pedido.n_pedido,pedido.tempo_util,pedido.genero);
 
   while(1) {
@@ -54,6 +54,8 @@ void * thrpedido_entrada(void * arg)
 	    sleep(pedido.tempo_util);
 	    pthread_mutex_lock(&mut);
 	    ocupados--;
+	    if(ocupados == 0)
+		genero == 'N';
 	    pthread_mutex_unlock(&mut); 
 	    printf("Pedido %d a sair\n",pedido.n_pedido);
 
@@ -71,35 +73,21 @@ void * thrpedido_entrada(void * arg)
 		      sleep(pedido.tempo_util);
 		      pthread_mutex_lock(&mut);
 		      ocupados--;
+	    	      if(ocupados == 0)
+			genero == 'N';
 		      printf("Pedido %d a sair\n",pedido.n_pedido);
 		      pthread_mutex_unlock(&mut); 
 		      return NULL; 
 		    }
 	    		//Sauna Cheia
-		    else {
-		      //printf("Sauna Cheia\n");
 
-				if (ocupados < n_lugares) { 
-				  printf("Lugar Vago\n");
-				  printf("Pedido %d a entrar %d\n",pedido.n_pedido,pedido.tempo_util);
-		      		  pthread_mutex_lock(&mut);
-				  ocupados++;
-				  pthread_mutex_unlock(&mut); 
-				  sleep(pedido.tempo_util);
-		      		  pthread_mutex_lock(&mut);
-				  ocupados--;
-				  printf("Pedido %d a sair\n",pedido.n_pedido);
-				  pthread_mutex_unlock(&mut); 
-				  return NULL; 
-				} 
-
-
-		    }
 	  }
 
 	  //Pedido do genero diferente ao da sauna
 	  else {
 	    printf("Pedido %d rejeitado\n",pedido.n_pedido);
+	    pedido.n_rejeit++;
+	    write(fsaida,&pedido,sizeof(pedido));
 	    return NULL; 
 
 	  }
@@ -109,12 +97,13 @@ void * thrpedido_entrada(void * arg)
 }
 
 
-void * thrpedido_receber(void * arg) 
+void * thrpedido_receber(void * arg1, void * arg2) 
 {
   struct Pedidos pedidos[100];
   pthread_t tpedidos[100];
   int i = 0;
-  int fentrada = *(int *) arg;
+  int fentrada = *(int *) arg1;
+  int frejeitados = *(int *) arg2;
   //Gera genero do utilizador
   printf("PEDIDOS RECEBIDOS:\n");
   while(read(fentrada,&pedidos[i],sizeof(ped[0])) > 0) {
@@ -125,7 +114,7 @@ void * thrpedido_receber(void * arg)
   }
   
   for(int j = 0; j < i; j++) {
-    pthread_create(&tpedidos[j], NULL, thrpedido_entrada, &pedidos[j]); 
+    pthread_create(&tpedidos[j], NULL, thrpedido_entrada, &pedidos[j], &saida); 
 
   }
 

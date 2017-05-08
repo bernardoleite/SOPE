@@ -15,6 +15,7 @@ struct Pedidos {
   char genero;
   int n_pedido;
   int tempo_util;
+  int n_rejeit;
 
 } pedido;
 
@@ -37,7 +38,7 @@ void * thrpedido(void * arg)
     ped.tempo_util = 1 + rand() % (max_util);
 
     ped.n_pedido = j + 1;
-
+    ped.n_rejeit = 0;
     write(fentrada,&ped,sizeof(ped));
   }
   return NULL;
@@ -83,8 +84,10 @@ int main(int argc, char * argv[])
  max_util = atoi(argv[2]);
 
  pthread_create(&tpedidos, NULL, thrpedido, &fentrada); 
+ pthread_create(&trejeitados, NULL, thrrejeitado, &frejeitados); 
 
  pthread_join(tpedidos, NULL); 
+ pthread_join(trejeitados, NULL); 
 
  //Fecha os fifos
  close(fentrada);
