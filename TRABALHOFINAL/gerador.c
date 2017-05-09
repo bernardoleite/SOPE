@@ -35,15 +35,14 @@ void write_pedido(struct Pedidos pedido, int type)
   end = clock();
   cpu_time_used = ((double) (end - start));
   int pid = getpid();
-  int tid = (unsigned int)pthread_self();
 
   char line[MAXLINE]; 
   if(type == 0)
-    sprintf(line,"%lf -%d  -%d -%d : %c -%f -%s\n", cpu_time_used,pid,tid,pedido.n_pedido,pedido.genero,pedido.tempo_util, "RECEBIDO"); 
+    sprintf(line,"%lf -%d -%d : %c -%f -%s\n", cpu_time_used,pid,pedido.n_pedido,pedido.genero,pedido.tempo_util, "PEDIDO"); 
   else if(type == 1)
-    sprintf(line,"%lf -%d  -%d -%d : %c -%f -%s\n", cpu_time_used,pid,tid,pedido.n_pedido,pedido.genero,pedido.tempo_util, "REJEITADO"); 
+    sprintf(line,"%lf -%d -%d : %c -%f -%s\n", cpu_time_used,pid,pedido.n_pedido,pedido.genero,pedido.tempo_util, "REJEITADO"); 
   else if(type == 2)
-    sprintf(line,"%lf -%d  -%d -%d : %c -%f -%s\n", cpu_time_used,pid,tid,pedido.n_pedido,pedido.genero,pedido.tempo_util, "SERVIDO"); 
+    sprintf(line,"%lf -%d -%d : %c -%f -%s\n", cpu_time_used,pid,pedido.n_pedido,pedido.genero,pedido.tempo_util, "DESCARTADO"); 
  
   write(file, line, strlen(line));
 
@@ -67,11 +66,11 @@ void * thrpedido(void * arg)
 
     ped.n_pedido = j + 1;
     ped.n_rejeit = 0;
-   printf("%d ",ped.n_pedido); 
-   printf("%c ",ped.genero); 
-   printf("%f\n",ped.tempo_util);
-   write_pedido(pedido,0);
-   write(fentrada,&ped,sizeof(ped));
+    printf("%d ",ped.n_pedido); 
+    printf("%c ",ped.genero); 
+    printf("%f\n",ped.tempo_util);
+    write_pedido(pedido,0);
+    write(fentrada,&ped,sizeof(ped));
   }
   return NULL;
 }
@@ -99,7 +98,6 @@ void * thrrejeitados(void * arg) {
   return NULL;
 }
 
-int readline(int fd, char *str); 
 int main(int argc, char * argv[]) 
 { 
 
@@ -113,8 +111,8 @@ int main(int argc, char * argv[])
 
  //Check Numero de argumentos
  if(argc != 3) {
-  fprintf(stderr, "Usage: %s dir_name\n", argv[0]);
-  exit(1);
+   fprintf(stderr, "Usage: %s dir_name\n", argv[0]);
+   exit(1);
  }
 
  int   fentrada, frejeitados; 
@@ -156,19 +154,9 @@ int main(int argc, char * argv[])
  pthread_join(trejeitados, NULL); 
  //Fecha os fifos
 
-close(file);
+ close(file);
  close(fentrada);
  close(frejeitados); 
 
  return 0; 
-} 
-
-
-int readline(int file, char *str) 
-{ 
- int n; 
- do { 
-   n = read(file,str,1); 
- } while (n>0 && *str++ != '\0'); 
- return (n>0); 
 } 
