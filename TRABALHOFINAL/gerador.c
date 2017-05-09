@@ -18,13 +18,37 @@ struct Pedidos {
   
   char genero;
   int n_pedido;
-  int tempo_util;
+  float tempo_util;
   int n_rejeit;
 
 } pedido;
 
+int MAXLINE = 100;
 int max_util;
 int n_pedidos;
+clock_t start, end;
+int file;
+
+void write_pedido(struct Pedidos pedido, int type)
+{
+  double cpu_time_used;
+  end = clock();
+  cpu_time_used = ((double) (end - start));
+  int pid = getpid();
+  int tid = (unsigned int)pthread_self();
+
+  char line[MAXLINE]; 
+  if(type == 0)
+    sprintf(line,"%lf -%d  -%d -%d : %c -%f -%s\n", cpu_time_used,pid,tid,pedido.n_pedido,pedido.genero,pedido.tempo_util, "RECEBIDO"); 
+  else if(type == 1)
+    sprintf(line,"%lf -%d  -%d -%d : %c -%f -%s\n", cpu_time_used,pid,tid,pedido.n_pedido,pedido.genero,pedido.tempo_util, "REJEITADO"); 
+  else if(type == 2)
+    sprintf(line,"%lf -%d  -%d -%d : %c -%f -%s\n", cpu_time_used,pid,tid,pedido.n_pedido,pedido.genero,pedido.tempo_util, "SERVIDO"); 
+ 
+  write(file, line, strlen(line));
+
+}
+
 
 void * thrpedido(void * arg) 
 {
@@ -39,13 +63,14 @@ void * thrpedido(void * arg)
       ped.genero = 'F';
     else
       ped.genero = 'M';
-    ped.tempo_util = 1 + rand() % (max_util);
+    ped.tempo_util = (float) (1 + rand() % (max_util)) / 1000;
 
     ped.n_pedido = j + 1;
     ped.n_rejeit = 0;
    printf("%d ",ped.n_pedido); 
    printf("%c ",ped.genero); 
-   printf("%d\n",ped.tempo_util);
+   printf("%f\n",ped.tempo_util);
+   write_pedido(pedido,0);
    write(fentrada,&ped,sizeof(ped));
   }
   return NULL;
@@ -61,12 +86,15 @@ void * thrrejeitados(void * arg) {
 
   while(read(frejeitados,&pedido,sizeof(pedido)) > 0) {
     printf("A entrar rejeitado %d Rejeitado %d\n",pedido.n_pedido,pedido.n_rejeit);
+    write_pedido(pedido,1);
     if(pedido.n_rejeit < 3) {
       printf("MANDAR PEDIDO %d\n",pedido.n_pedido);
       write(fentrada,&pedido,sizeof(pedido));
     }
-    else
+    else {
       printf("MAX REJEITADO PEDIDO %d\n",pedido.n_pedido);
+      write_pedido(pedido,2);
+    }
   }
   return NULL;
 }
@@ -74,6 +102,14 @@ void * thrrejeitados(void * arg) {
 int readline(int fd, char *str); 
 int main(int argc, char * argv[]) 
 { 
+
+  start = clock();
+  char filename[1000] = {};
+
+  int pid = getpid();
+  snprintf(filename, sizeof(filename), "/tmp/ger.%d.txt", pid);
+  file = open(filename, O_WRONLY | O_CREAT | O_EXCL, 0644); 
+
 
  //Check Numero de argumentos
  if(argc != 3) {
@@ -119,8 +155,11 @@ int main(int argc, char * argv[])
  pthread_join(tpedidos, NULL); 
  pthread_join(trejeitados, NULL); 
  //Fecha os fifos
+
+close(file);
  close(fentrada);
  close(frejeitados); 
+
  return 0; 
 } 
 

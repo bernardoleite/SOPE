@@ -19,7 +19,7 @@ struct Pedidos {
   
   char genero;
   int n_pedido;
-  int tempo_util;
+  float tempo_util;
   int n_rejeit;
 
 } pedido;
@@ -32,12 +32,14 @@ struct PEDIDOEFIFO {
 }pedidoefifo;
 
 pthread_mutex_t mut=PTHREAD_MUTEX_INITIALIZER;  // mutex p/a sec.critica 
-struct Pedidos ped;
+
+int MAXLINE = 100;
 int n_lugares;
 int ocupados = 0;
 char genero = 'N';
+clock_t start, end;
+int file;
 
- 
 int readline(int fd, char *str) 
 { 
   int n; 
@@ -47,6 +49,26 @@ int readline(int fd, char *str)
   return (n>0); 
 } 
 
+void write_pedido(struct Pedidos pedido, int type)
+{
+  double cpu_time_used;
+  end = clock();
+  cpu_time_used = ((double) (end - start));
+  int pid = getpid();
+  int tid = (unsigned int)pthread_self();
+
+  char line[MAXLINE]; 
+  if(type == 0)
+    sprintf(line,"%lf -%d  -%d -%d : %c -%f -%s\n", cpu_time_used,pid,tid,pedido.n_pedido,pedido.genero,pedido.tempo_util, "RECEBIDO"); 
+  else if(type == 1)
+    sprintf(line,"%lf -%d  -%d -%d : %c -%f -%s\n", cpu_time_used,pid,tid,pedido.n_pedido,pedido.genero,pedido.tempo_util, "REJEITADO"); 
+  else if(type == 2)
+    sprintf(line,"%lf -%d  -%d -%d : %c -%f -%s\n", cpu_time_used,pid,tid,pedido.n_pedido,pedido.genero,pedido.tempo_util, "SERVIDO"); 
+ 
+  write(file, line, strlen(line));
+
+}
+
 void * thrpedido_entrada(void * arg)
 {
 
@@ -55,15 +77,15 @@ void * thrpedido_entrada(void * arg)
   int frejeitados = pedfifo->fifo; 
 
 
-  printf("Pedido %d a querer entrar %d do genero %c\n",pedido.n_pedido,pedido.tempo_util,pedido.genero);
-
+  printf("Pedido %d a querer entrar %f do genero %c\n",pedido.n_pedido,pedido.tempo_util,pedido.genero);
+  write_pedido(pedido,0);
   while(1) {
 
   //Sauna Vazia
 	  if(genero == 'N') {
     	    pthread_mutex_lock(&mut);
 	    genero = pedido.genero;
-	    printf("Pedido %d a entrar %d\n",pedido.n_pedido,pedido.tempo_util);
+	    printf("Pedido %d a entrar %f\n",pedido.n_pedido,pedido.tempo_util);
 	    ocupados++;
 	    pthread_mutex_unlock(&mut); 
 	    sleep(pedido.tempo_util);
@@ -71,8 +93,9 @@ void * thrpedido_entrada(void * arg)
 	    ocupados--;
 	    if(ocupados == 0)
 		genero = 'N';
-	    pthread_mutex_unlock(&mut); 
 	    printf("Pedido %d a sair\n",pedido.n_pedido);
+  	    write_pedido(pedido,2);
+	    pthread_mutex_unlock(&mut); 
 
 		return NULL;
 	  }
@@ -81,7 +104,7 @@ void * thrpedido_entrada(void * arg)
 	  else if(genero == pedido.genero) {
 	    		//Sauna não cheia
 		    if(ocupados < n_lugares) {
-		      printf("Pedido %d a entrar %d\n",pedido.n_pedido,pedido.tempo_util);
+		      printf("Pedido %d a entrar %f\n",pedido.n_pedido,pedido.tempo_util);
 		      pthread_mutex_lock(&mut);
 		      ocupados++;
 		      pthread_mutex_unlock(&mut); 
@@ -91,7 +114,12 @@ void * thrpedido_entrada(void * arg)
 		      printf("Pedido %d a sair\n",pedido.n_pedido);
 	    	      if(ocupados == 0)
 			genero = 'N';
+                      write_pedido(pedido,2);
 		      pthread_mutex_unlock(&mut); 
+
+
+
+
 		      return NULL; 
 		    }
 
@@ -102,6 +130,7 @@ void * thrpedido_entrada(void * arg)
 	    printf("Pedido %d rejeitado\n",pedido.n_pedido);
 	    pedido.n_rejeit++;
             write(frejeitados,&pedido,sizeof(pedido));
+            write_pedido(pedido,1);
 	    return NULL; 
 
 	  }
@@ -124,7 +153,7 @@ void * thrpedido_receber(void * arg)
   printf("PEDIDOS RECEBIDOS:\n");
 
   while(read(fentrada,&pedidos,sizeof(pedidos)) > 0) {
-   printf("%d %c % d\n", pedidos.n_pedido, pedidos.genero, pedidos.tempo_util);
+   printf("%d %c % f\n", pedidos.n_pedido, pedidos.genero, pedidos.tempo_util);
    
    pedfifo[i].pedido = pedidos;
    pedfifo[i].fifo = frejeitados;
@@ -145,6 +174,12 @@ void * thrpedido_receber(void * arg)
 int main(int argc, char* argv[]) 
 { 
 
+  start = clock();
+  char filename[1000] = {};
+
+  int pid = getpid();
+  snprintf(filename, sizeof(filename), "/tmp/bal.%d.txt", pid);
+  file = open(filename, O_WRONLY | O_CREAT | O_EXCL, 0644); 
  //Check Numero de argumentos
  if(argc != 2) {
   fprintf(stderr, "Usage: %s dir_name\n", argv[0]);
@@ -182,8 +217,9 @@ int main(int argc, char* argv[])
  pthread_create(&tpedidos_recebidos, NULL, thrpedido_receber, (void *) &fifos); 
 
  pthread_join(tpedidos_recebidos, NULL); 
-
+ close(file);
  close(fentrada); 
  close(frejeitados); 
+
  return 0; 
 } 
