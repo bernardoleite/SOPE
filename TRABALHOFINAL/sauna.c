@@ -20,6 +20,7 @@ struct Pedidos {
   char genero;
   int n_pedido;
   int tempo_util;
+  int n_rejeit;
 
 } pedido;
 
@@ -52,7 +53,7 @@ void * thrpedido_entrada(void * arg)
   struct PEDIDOEFIFO* pedfifo = (struct PEDIDOEFIFO *) arg;
   struct Pedidos pedido = pedfifo->pedido;
   int frejeitados = pedfifo->fifo; 
-  //struct Pedidos pedido = *(struct Pedidos *) arg;
+
 
   printf("Pedido %d a querer entrar %d do genero %c\n",pedido.n_pedido,pedido.tempo_util,pedido.genero);
 
@@ -68,6 +69,8 @@ void * thrpedido_entrada(void * arg)
 	    sleep(pedido.tempo_util);
 	    pthread_mutex_lock(&mut);
 	    ocupados--;
+	    if(ocupados == 0)
+		genero = 'N';
 	    pthread_mutex_unlock(&mut); 
 	    printf("Pedido %d a sair\n",pedido.n_pedido);
 
@@ -86,6 +89,8 @@ void * thrpedido_entrada(void * arg)
 		      pthread_mutex_lock(&mut);
 		      ocupados--;
 		      printf("Pedido %d a sair\n",pedido.n_pedido);
+	    	      if(ocupados == 0)
+			genero = 'N';
 		      pthread_mutex_unlock(&mut); 
 		      return NULL; 
 		    }
@@ -95,7 +100,8 @@ void * thrpedido_entrada(void * arg)
 	  //Pedido do genero diferente ao da sauna
 	  else {
 	    printf("Pedido %d rejeitado\n",pedido.n_pedido);
-         //   write(frejeitados,&pedido,sizeof(pedido));
+	    pedido.n_rejeit++;
+            write(frejeitados,&pedido,sizeof(pedido));
 	    return NULL; 
 
 	  }
@@ -122,13 +128,8 @@ void * thrpedido_receber(void * arg)
    
    pedfifo[i].pedido = pedidos;
    pedfifo[i].fifo = frejeitados;
-
+   pthread_create(&tpedidos[i], NULL, thrpedido_entrada, (void *) &pedfifo[i]); 
    i++;
-  }
-  
-  for(int j = 0; j < i; j++) {
-    pthread_create(&tpedidos[j], NULL, thrpedido_entrada, (void *) &pedfifo[j]); 
-
   }
 
 

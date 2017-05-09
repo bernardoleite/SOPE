@@ -9,12 +9,17 @@
 #include <stdlib.h>
 #include <pthread.h> 
 
+struct FIFOS {
+  int fentrada;
+  int frejeitados;
+} fifos;
 
 struct Pedidos {
   
   char genero;
   int n_pedido;
   int tempo_util;
+  int n_rejeit;
 
 } pedido;
 
@@ -37,10 +42,31 @@ void * thrpedido(void * arg)
     ped.tempo_util = 1 + rand() % (max_util);
 
     ped.n_pedido = j + 1;
+    ped.n_rejeit = 0;
    printf("%d ",ped.n_pedido); 
    printf("%c ",ped.genero); 
    printf("%d\n",ped.tempo_util);
    write(fentrada,&ped,sizeof(ped));
+  }
+  return NULL;
+}
+
+
+void * thrrejeitados(void * arg) {
+  struct FIFOS* fifos = (struct FIFOS *) arg;
+
+  int fentrada = fifos->fentrada;
+  int frejeitados = fifos->frejeitados;
+  struct Pedidos pedido;
+
+  while(read(frejeitados,&pedido,sizeof(pedido)) > 0) {
+    printf("A entrar rejeitado %d Rejeitado %d\n",pedido.n_pedido,pedido.n_rejeit);
+    if(pedido.n_rejeit < 3) {
+      printf("MANDAR PEDIDO %d\n",pedido.n_pedido);
+      write(fentrada,&pedido,sizeof(pedido));
+    }
+    else
+      printf("MAX REJEITADO PEDIDO %d\n",pedido.n_pedido);
   }
   return NULL;
 }
@@ -86,8 +112,12 @@ int main(int argc, char * argv[])
 
  pthread_create(&tpedidos, NULL, thrpedido, &fentrada); 
 
+ struct FIFOS fifos;
+ fifos.fentrada = fentrada;
+ fifos.frejeitados = frejeitados;
+ pthread_create(&trejeitados, NULL, thrrejeitados, (void *) &fifos); 
  pthread_join(tpedidos, NULL); 
-
+ pthread_join(trejeitados, NULL); 
  //Fecha os fifos
  close(fentrada);
  close(frejeitados); 
