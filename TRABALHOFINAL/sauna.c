@@ -10,11 +10,15 @@
 #include <time.h>
 #include <pthread.h> 
 
+
+//Struct de dois inteiros
 struct FIFOS {
   int fentrada;
   int frejeitados;
 } fifos;
 
+
+//Struct com as variáveis de um Pedido
 struct Pedidos {
   
   char genero;
@@ -25,14 +29,17 @@ struct Pedidos {
 } pedido;
 
 
+//Struct com um inteiro e um Pedido
 struct PEDIDOEFIFO {
 
   struct Pedidos pedido;
   int fifo;
 } pedidoefifo;
 
+
 pthread_mutex_t mut=PTHREAD_MUTEX_INITIALIZER;  // mutex p/a sec.critica 
 
+//Variaveis Globais
 int MAXLINE = 100;
 int n_lugares;
 int ocupados = 0;
@@ -40,8 +47,11 @@ char genero = 'N';
 clock_t start, end;
 int file;
 
+
+//Escrita para o ficheiro /tmp/bal.pid (em que pid é a pid do processo)
 void write_pedido(struct Pedidos pedido, int type)
 {
+  
   double cpu_time_used;
   end = clock();
   cpu_time_used = ((double) (end - start));
@@ -60,6 +70,9 @@ void write_pedido(struct Pedidos pedido, int type)
 
 }
 
+
+
+//Função em que verifica se um pedido pode ou não entrar na sauna
 void * thrpedido_entrada(void * arg)
 {
 
@@ -72,7 +85,7 @@ void * thrpedido_entrada(void * arg)
   write_pedido(pedido,0);
   while(1) {
 
-  //Sauna Vazia
+  //Se a sauna estiver vazia
     if(genero == 'N') {
       pthread_mutex_lock(&mut);
       genero = pedido.genero;
@@ -91,9 +104,9 @@ void * thrpedido_entrada(void * arg)
       return NULL;
     }
 
-	  //Pedido do genero igual ao da sauna
+    //Pedido do genero igual ao da sauna
     else if(genero == pedido.genero) {
-	    		//Sauna não cheia
+      //Sauna não cheia
       if(ocupados < n_lugares) {
         printf("Pedido %d a entrar %f\n",pedido.n_pedido,pedido.tempo_util);
 	pthread_mutex_lock(&mut);
@@ -127,6 +140,7 @@ void * thrpedido_entrada(void * arg)
 }
 
 
+//Função que recebe um pedido do gerador e cria uma thread para cada pedido
 void * thrpedido_receber(void * arg) 
 {
   struct Pedidos pedidos;
@@ -139,6 +153,8 @@ void * thrpedido_receber(void * arg)
   //Gera genero do utilizador
   printf("PEDIDOS RECEBIDOS:\n");
 
+
+  //recebe um pedido e cria uma thread
   while(read(fentrada,&pedidos,sizeof(pedidos)) > 0) {
     printf("%d %c % f\n", pedidos.n_pedido, pedidos.genero, pedidos.tempo_util);
    
@@ -185,7 +201,7 @@ int main(int argc, char* argv[])
     exit(2);
   } 
 
-  //Criar fifo dos rejeitados
+  //Criar fifo dos rejeit ados
   frejeitados=open("/tmp/rejeitados",O_WRONLY);
 
   //Check se abriu o fifo dos rejeitados
@@ -193,11 +209,16 @@ int main(int argc, char* argv[])
     perror("Can't Open Rejeitados Fifo\n");
     exit(3);
   } 
- 
+  
+  //Variavel global com o numero de lugares disponíveis na sauna
   n_lugares = atoi(argv[1]);
+
+  //Cria estrutura FIFOS
   struct FIFOS fifos;
   fifos.fentrada = fentrada;
   fifos.frejeitados = frejeitados;
+
+  //Cria uma thread para receber os pedidos enviados pelo gerador
   pthread_create(&tpedidos_recebidos, NULL, thrpedido_receber, (void *) &fifos); 
 
   pthread_join(tpedidos_recebidos, NULL); 

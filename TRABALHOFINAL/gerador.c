@@ -9,11 +9,15 @@
 #include <stdlib.h>
 #include <pthread.h> 
 
+
+//Struct de dois inteiros
 struct FIFOS {
   int fentrada;
   int frejeitados;
 } fifos;
 
+
+//Struct com as variáveis de um Pedido
 struct Pedidos {
   
   char genero;
@@ -23,12 +27,16 @@ struct Pedidos {
 
 } pedido;
 
+
+//Variaveis Globais
 int MAXLINE = 100;
 int max_util;
 int n_pedidos;
 clock_t start, end;
 int file;
 
+
+//Escrita para o ficheiro /tmp/ger.pid (em que pid é a pid do processo)
 void write_pedido(struct Pedidos pedido, int type)
 {
   double cpu_time_used;
@@ -49,6 +57,7 @@ void write_pedido(struct Pedidos pedido, int type)
 }
 
 
+//Função que cria um pedido e o envia para a suana
 void * thrpedido(void * arg) 
 {
 
@@ -76,6 +85,7 @@ void * thrpedido(void * arg)
 }
 
 
+//Função que recebe um pedido rejeitado pela sauna
 void * thrrejeitados(void * arg) {
   struct FIFOS* fifos = (struct FIFOS *) arg;
 
@@ -84,6 +94,7 @@ void * thrrejeitados(void * arg) {
   struct Pedidos pedido;
 
   while(read(frejeitados,&pedido,sizeof(pedido)) > 0) {
+
     printf("A entrar rejeitado %d Rejeitado %d\n",pedido.n_pedido,pedido.n_rejeit);
     write_pedido(pedido,1);
     if(pedido.n_rejeit < 3) {
@@ -97,6 +108,8 @@ void * thrrejeitados(void * arg) {
   }
   return NULL;
 }
+
+
 
 int main(int argc, char * argv[]) 
 { 
@@ -141,15 +154,24 @@ int main(int argc, char * argv[])
    exit(3);
  } 
 
+ //Número máximo de pedidos
  n_pedidos = atoi(argv[1]);
+
+ //Tempo máximo de utilização
  max_util = atoi(argv[2]);
 
+ //Cria uma thread para criar os pedidos e envia-los para a sauna
  pthread_create(&tpedidos, NULL, thrpedido, &fentrada); 
 
+
+ //Cria uma estrutura FIFOS
  struct FIFOS fifos;
  fifos.fentrada = fentrada;
  fifos.frejeitados = frejeitados;
+
+ //Cria uma thread para ler os pedidos rejeitados e envia-los novamente se não foram rejeitados mais de 3 vezes
  pthread_create(&trejeitados, NULL, thrrejeitados, (void *) &fifos); 
+
  pthread_join(tpedidos, NULL); 
  pthread_join(trejeitados, NULL); 
  //Fecha os fifos
