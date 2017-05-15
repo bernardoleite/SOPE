@@ -46,7 +46,7 @@ int ocupados = 0;
 char genero = 'N';
 clock_t start, end;
 int file;
-
+int n_total_pedidos;
 
 //Escrita para o ficheiro /tmp/bal.pid (em que pid é a pid do processo)
 void write_pedido(struct Pedidos pedido, int type)
@@ -144,8 +144,8 @@ void * thrpedido_entrada(void * arg)
 void * thrpedido_receber(void * arg) 
 {
   struct Pedidos pedidos;
-  struct PEDIDOEFIFO pedfifo[100];
-  pthread_t tpedidos[100];
+  struct PEDIDOEFIFO pedfifo[n_total_pedidos * 3];
+  pthread_t tpedidos[n_total_pedidos * 3];
   int i = 0;
   struct FIFOS* fifos = (struct FIFOS *) arg;
   int fentrada = fifos->fentrada;
@@ -155,7 +155,12 @@ void * thrpedido_receber(void * arg)
 
 
   //recebe um pedido e cria uma thread
-  while(read(fentrada,&pedidos,sizeof(pedidos)) > 0) {
+  while(1) {
+    int n = read(fentrada,&pedidos,sizeof(pedidos));
+
+    if (n  <= 0 || pedidos.n_pedido < 0) {
+	break;
+    }
     printf("%d %c % f\n", pedidos.n_pedido, pedidos.genero, pedidos.tempo_util);
    
     pedfifo[i].pedido = pedidos;
@@ -210,8 +215,26 @@ int main(int argc, char* argv[])
     exit(3);
   } 
   
+
+  //Criar fifo dos rejeit ados
+  int faux=open("/tmp/aux",O_RDONLY);
+
+  //Check se abriu o fifo dos rejeitados
+  if(faux == -1) {
+    perror("Can't Open Auxiliar Fifo\n");
+    exit(4);
+  } 
+
+
   //Variavel global com o numero de lugares disponíveis na sauna
   n_lugares = atoi(argv[1]);
+
+  n_total_pedidos = 0;
+
+
+  read(faux,&n_total_pedidos,sizeof(int));
+  printf("N total pedidos: %d\n",n_total_pedidos);
+
 
   //Cria estrutura FIFOS
   struct FIFOS fifos;

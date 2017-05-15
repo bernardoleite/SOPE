@@ -78,9 +78,11 @@ void * thrpedido(void * arg)
     printf("%d ",ped.n_pedido); 
     printf("%c ",ped.genero); 
     printf("%f\n",ped.tempo_util);
-    write_pedido(pedido,0);
+    write_pedido(ped,0);
+
     write(fentrada,&ped,sizeof(ped));
   }
+
   return NULL;
 }
 
@@ -153,9 +155,24 @@ int main(int argc, char * argv[])
    perror("Can't Open Rejeitados Fifo\n");
    exit(3);
  } 
+ 
+
+ //Criar Fifo da entrada
+ mkfifo("/tmp/aux",0660); 
+ int faux=open("/tmp/aux",O_WRONLY);
+
+ //Check se abriu o fifo de entrada
+ if(faux == -1) {
+   perror("Can't Open Auxiliar Fifo\n");
+   exit(4);
+ } 
+
 
  //Número máximo de pedidos
  n_pedidos = atoi(argv[1]);
+
+ write(faux,&n_pedidos,sizeof(n_pedidos));
+
 
  //Tempo máximo de utilização
  max_util = atoi(argv[2]);
@@ -171,6 +188,15 @@ int main(int argc, char * argv[])
 
  //Cria uma thread para ler os pedidos rejeitados e envia-los novamente se não foram rejeitados mais de 3 vezes
  pthread_create(&trejeitados, NULL, thrrejeitados, (void *) &fifos); 
+ sleep(1);
+
+
+ //Pedido Final
+ struct Pedidos ped;
+ ped.n_pedido = -1;
+ ped.n_rejeit = 0;
+ ped.genero = 'N';
+ write(fentrada,&ped,sizeof(ped));
 
  pthread_join(tpedidos, NULL); 
  pthread_join(trejeitados, NULL); 
