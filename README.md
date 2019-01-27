@@ -1,4 +1,4 @@
-# Morelli Board Game - Minimax and Alpha–beta pruning
+# Simulation of shared resource access
 
 ### Description
 
