@@ -23,3 +23,7 @@ C
 * Bernardo Leite 
 * Luís Saraiva
 
+
+### Explanatory scheme of the sauna
+
+![sauna](https://user-images.githubusercontent.com/22004638/51805330-f213c780-2263-11e9-82a6-faaa366255e0.PNG)
