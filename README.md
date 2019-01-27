@@ -1,4 +1,4 @@
-# Simulation of shared resource access
+# Simulation of shared resource
 
 ### Description
 
